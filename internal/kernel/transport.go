@@ -2,10 +2,17 @@ package kernel
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
 
 	"gitea.com/yaothink/cloud/internal/internal/kernel"
 	"gitea.com/yaothink/cloud/internal/internal/param"
+	"github.com/go-resty/resty/v2"
 	"github.com/goexl/exception"
 	"github.com/goexl/gox"
 	"github.com/goexl/gox/field"
@@ -21,37 +28,159 @@ func NewTransport(params *param.Cloud) *Transport {
 	}
 }
 
-func (t *Transport) Do(ctx context.Context, req kernel.Request, rsp any) (code uint32, err error) {
-	response := new(dto.Response)
-	response.Result = rsp
-
-	request := t.http.NewRequest()
-	request.SetContext(ctx).SetBody(req).SetResult(response)
+func (t *Transport) Do(ctx context.Context, req kernel.Request, rsp any) (err error) {
+	request := t.params.Http.NewRequest()
+	request.SetContext(ctx).SetResult(rsp)
 
 	url := fmt.Sprintf(
 		"https://aip.cloud.yaotink.tech/categories/%s/services/%s/functions/%s",
-		req.Category(), req.Service(), req.Function(),
+		req.Category(), req.Product(), req.Function(),
 	)
 	fields := gox.Fields[any]{
 		field.New("url", url),
 	}
-	if token, pte := t.pickToken(ctx); nil != pte {
-		err = pte
-	} else if hpr, hpe := request.SetQueryParam("access_token", token).Post(url); nil != hpe {
+
+	t.params.Logger.Debug("开始调用接口", field.New("url", url), fields...)
+	if bytes, me := json.Marshal(req); me != nil {
+		err = me
+	} else if pe := t.prepare(ctx, request, req, &bytes); nil != pe {
+		err = pe
+	} else if hpr, hpe := request.Post(url); nil != hpe {
 		err = hpe
 	} else if hpr.IsError() {
-		bodyField := field.New("body", string(hpr.Body()))
-		message := "百度服务器返回错误"
-		err = exception.New().Code(1).Message(message).Field(bodyField, fields...).Build()
-		t.logger.Error(message, bodyField, fields...)
-	} else if response.IsError() {
-		bodyField := field.New("body", string(hpr.Body()))
-		message := "接口调用出错"
-		t.logger.Warn(message, bodyField, fields...)
+		err = t.handleException(req, hpr)
 	}
 
-	// 将代码回传给上级调用
-	code = response.Code
+	return
+}
+
+func (t *Transport) handleException(req kernel.Request, response *resty.Response) (err error) {
+	if response.StatusCode() == http.StatusUnprocessableEntity {
+		err = t.handleUnprocessableEntity(response)
+	} else {
+		err = t.handleOthers(req, response)
+	}
+
+	return
+}
+
+func (t *Transport) handleUnprocessableEntity(response *resty.Response) (err error) {
+	exc := new(kernel.Exception)
+	if ue := json.Unmarshal(response.Body(), exc); ue != nil {
+		err = exception.New().Message("服务器数据返回格式错误").Field(field.New("body", string(response.Body()))).Build()
+	} else if exc.Code == 1 {
+		err = exception.New().Message("数组绑定出错").Field(field.New("code", 1)).Build()
+	} else if exc.Code == 2 {
+		err = exception.New().Message("设置数据默认值出错").Field(field.New("code", 2)).Build()
+	} else if exc.Code == 3 {
+		err = exception.New().Message("数组校验不通过").Field(field.New("code", 3)).Build()
+	}
+
+	return
+}
+
+func (t *Transport) handleOthers(req kernel.Request, response *resty.Response) (err error) {
+	exc := new(kernel.Exception)
+	if ue := json.Unmarshal(response.Body(), exc); ue != nil {
+		err = exception.New().Message("服务器数据返回格式错误").Field(field.New("body", string(response.Body()))).Build()
+	} else if exc.Code == 1 {
+		err = exception.New().Message("数组绑定出错").Field(field.New("code", 1)).Build()
+	} else if exc.Code == 2 {
+		err = exception.New().Message("设置数据默认值出错").Field(field.New("code", 2)).Build()
+	} else if exc.Code == 3 {
+		err = exception.New().Message("数组校验不通过").Field(field.New("code", 3)).Build()
+	} else {
+		err = exception.New().Message("未知错误").Field(field.New("body", string(response.Body()))).Build()
+	}
+
+	return
+}
+
+func (t *Transport) prepare(
+	_ context.Context,
+	request *resty.Request,
+	req kernel.Request, payload *[]byte,
+) (err error) {
+	id := t.params.Id
+	key := t.params.Key
+	host := "api.cloud.yaothink.tech"
+	algorithm := "YC-ZONGLIANG"
+	category := req.Category()
+	product := req.Product()
+	function := req.Function()
+	timestamp := time.Now().Unix()
+
+	// 步骤一：构建规范请求
+	method := req.Method()
+	canonicalURI := req.Url()
+	canonicalQueryString := ""
+	canonicalHeaders := fmt.Sprintf(
+		"content-type:%s\nhost:%s\n",
+		"application/json; charset=utf-8", host,
+	)
+	signedHeaders := "content-type;host"
+	hashedRequestPayload := t.sha256Hex(*payload)
+	canonicalRequest := fmt.Sprintf(
+		"%s\n%s\n%s\n%s\n%s\n%s",
+		method,
+		canonicalURI,
+		canonicalQueryString,
+		canonicalHeaders,
+		signedHeaders,
+		hashedRequestPayload,
+	)
+	t.params.Logger.Debug("构建规范请求完成", field.New("result", canonicalRequest))
+
+	// 步骤二：构建待签名字符串
+	date := time.Unix(timestamp, 0).UTC().Format("2006-01-02")
+	credentialScope := fmt.Sprintf("%s/%s/%s/%s/yc_request", date, category, product, function)
+	hashedCanonicalRequest := t.sha256Hex([]byte(canonicalRequest))
+	stringToSign := fmt.Sprintf(
+		"%s\n%d\n%s\n%s\n%s\n%s\n%s",
+		algorithm,
+		timestamp,
+		category,
+		product,
+		function,
+		credentialScope,
+		hashedCanonicalRequest,
+	)
+	t.params.Logger.Debug("构建待签名字符串完成", field.New("result", stringToSign))
+
+	// 步骤三：计算签名
+	secretDate := t.hmacSHA256(date, algorithm+key)
+	secretService := t.hmacSHA256(fmt.Sprintf("%s/%s/%s", category, product, function), secretDate)
+	secretSigning := t.hmacSHA256("yc_request", secretService)
+	signature := hex.EncodeToString([]byte(t.hmacSHA256(stringToSign, secretSigning)))
+	t.params.Logger.Debug("计算签名完成", field.New("result", signature))
+
+	authorization := fmt.Sprintf(
+		"%s %s,%s,%s,%s,%s,%s",
+		algorithm,
+		id,
+		category,
+		product,
+		function,
+		signedHeaders,
+		signature,
+	)
+	t.params.Logger.Debug("填充授权村头", field.New("authorization", authorization))
+	request.SetHeader("Authorization", authorization).SetBody(*payload)
+
+	return
+}
+
+func (t *Transport) sha256Hex(from []byte) (to string) {
+	sum := sha256.Sum256(from)
+	to = hex.EncodeToString(sum[:])
+
+	return
+}
+
+func (t *Transport) hmacSHA256(from, key string) (to string) {
+	hashed := hmac.New(sha256.New, []byte(key))
+	hashed.Write([]byte(from))
+	to = string(hashed.Sum(nil))
 
 	return
 }

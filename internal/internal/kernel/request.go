@@ -1,5 +1,9 @@
 package kernel
 
+import (
+	"gitea.com/yaothink/cloud/internal/constant"
+)
+
 type Request interface {
 	Category() string
 
@@ -8,4 +12,6 @@ type Request interface {
 	Function() string
 
 	Url() string
+
+	Method() constant.Method
 }

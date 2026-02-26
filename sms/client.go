@@ -1,21 +1,24 @@
 package sms
 
 import (
+	"context"
+
 	"gitea.com/yaothink/cloud/internal/kernel"
 )
 
 type Client struct {
-	transport kernel.Transport
+	transport *kernel.Transport
 }
 
-func NewClient(transport kernel.Transport) *Client {
+func NewClient(transport *kernel.Transport) *Client {
 	return &Client{
 		transport: transport,
 	}
 }
 
-func (c *Client) Delivery(request *DeliveryRequest) (response *DeliveryResponse, err error) {
+func (c *Client) Delivery(ctx context.Context, request *DeliveryRequest) (response *DeliveryResponse, err error) {
 	response = new(DeliveryResponse)
+	err = c.transport.Do(ctx, request, response)
 
 	return
 }

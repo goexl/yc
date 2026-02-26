@@ -1,5 +1,9 @@
 package sms
 
+import (
+	"gitea.com/yaothink/cloud/internal/constant"
+)
+
 type (
 	DeliveryRequest struct {
 		*request
@@ -9,6 +13,21 @@ type (
 		Values   map[string]any `json:"varName2Values,omitempty"`
 	}
 
+	DeliverResult struct {
+		Phone   string `json:"phone,omitempty"`
+		Success bool   `json:"success,omitempty"`
+		Error   string `json:"error,omitempty"`
+	}
+
 	DeliveryResponse struct {
+		Results []DeliverResult `json:"results,omitempty"`
 	}
 )
+
+func (*DeliveryRequest) Method() constant.Method {
+	return constant.MethodPost
+}
+
+func (*DeliveryRequest) Url() string {
+	return "api/sms/deliveries"
+}

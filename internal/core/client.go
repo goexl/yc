@@ -2,6 +2,8 @@ package core
 
 import (
 	"gitea.com/yaothink/cloud/internal/internal/param"
+	"gitea.com/yaothink/cloud/internal/kernel"
+	"gitea.com/yaothink/cloud/sms"
 )
 
 type Client struct {
@@ -14,6 +16,6 @@ func NewClient(params *param.Cloud) *Client {
 	}
 }
 
-func (c *Client) Sms() {
-
+func (c *Client) Sms() *sms.Client {
+	return sms.NewClient(kernel.NewTransport(c.params))
 }
