@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"github.com/goexl/http"
 	"github.com/goexl/log"
 	"github.com/goexl/yc/internal/core"
 	"github.com/goexl/yc/internal/internal/param"
@@ -19,6 +20,12 @@ func NewCloud(id, key string) *Cloud {
 func (c *Cloud) Logger(logger log.Logger) *Cloud {
 	return c.set(func() {
 		c.params.Logger = logger
+	})
+}
+
+func (c *Cloud) Http(http *http.Client) *Cloud {
+	return c.set(func() {
+		c.params.Http = http
 	})
 }
 
