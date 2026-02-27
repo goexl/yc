@@ -1,9 +1,9 @@
 package builder
 
 import (
-	"gitea.com/yaothink/cloud/internal/core"
-	"gitea.com/yaothink/cloud/internal/internal/param"
 	"github.com/goexl/log"
+	"github.com/goexl/yc/internal/core"
+	"github.com/goexl/yc/internal/internal/param"
 )
 
 type Cloud struct {

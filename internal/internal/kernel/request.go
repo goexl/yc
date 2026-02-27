@@ -1,7 +1,7 @@
 package kernel
 
 import (
-	"gitea.com/yaothink/cloud/internal/constant"
+	"github.com/goexl/yc/internal/constant"
 )
 
 type Request interface {

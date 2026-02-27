@@ -1,4 +1,4 @@
-module gitea.com/yaothink/cloud
+module github.com/goexl/yc
 
 go 1.26
 

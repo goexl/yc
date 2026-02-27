@@ -1,9 +1,9 @@
 package core
 
 import (
-	"gitea.com/yaothink/cloud/internal/internal/param"
-	"gitea.com/yaothink/cloud/internal/kernel"
-	"gitea.com/yaothink/cloud/sms"
+	"github.com/goexl/yc/internal/internal/param"
+	"github.com/goexl/yc/internal/kernel"
+	"github.com/goexl/yc/sms"
 )
 
 type Client struct {

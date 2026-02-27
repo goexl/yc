@@ -1,8 +1,8 @@
-package cloud
+package yc
 
 import (
-	"gitea.com/yaothink/cloud/internal/builder"
-	"gitea.com/yaothink/cloud/internal/core"
+	"github.com/goexl/yc/internal/builder"
+	"github.com/goexl/yc/internal/core"
 )
 
 // Client 客户端

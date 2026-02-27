@@ -10,12 +10,12 @@ import (
 	"net/http"
 	"time"
 
-	"gitea.com/yaothink/cloud/internal/internal/kernel"
-	"gitea.com/yaothink/cloud/internal/internal/param"
 	"github.com/go-resty/resty/v2"
 	"github.com/goexl/exception"
 	"github.com/goexl/gox"
 	"github.com/goexl/gox/field"
+	"github.com/goexl/yc/internal/internal/kernel"
+	"github.com/goexl/yc/internal/internal/param"
 )
 
 type Transport struct {

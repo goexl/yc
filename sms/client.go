@@ -3,7 +3,7 @@ package sms
 import (
 	"context"
 
-	"gitea.com/yaothink/cloud/internal/kernel"
+	"github.com/goexl/yc/internal/kernel"
 )
 
 type Client struct {
