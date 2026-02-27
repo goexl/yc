@@ -1,6 +1,6 @@
 module github.com/goexl/yc
 
-go 1.26
+go 1.25.0
 
 require (
 	github.com/go-resty/resty/v2 v2.17.2
