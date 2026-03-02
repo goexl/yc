@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -33,8 +34,8 @@ func (t *Transport) Do(ctx context.Context, req kernel.Request, rsp any) (err er
 	request.SetContext(ctx).SetResult(rsp)
 
 	url := fmt.Sprintf(
-		"https://aip.cloud.yaotink.tech/categories/%s/services/%s/functions/%s",
-		req.Category(), req.Product(), req.Function(),
+		"https://api.cloud.yaothink.tech/categories/%s/products/%s/functions/%s/%s",
+		req.Category(), req.Product(), req.Function(), req.Url(),
 	)
 	fields := gox.Fields[any]{
 		field.New("url", url),
@@ -48,6 +49,7 @@ func (t *Transport) Do(ctx context.Context, req kernel.Request, rsp any) (err er
 	} else if hpr, hpe := request.Post(url); nil != hpe {
 		err = hpe
 	} else if hpr.IsError() {
+		fmt.Println(t.params.Http.Curl(hpr))
 		err = t.handleException(req, hpr)
 	}
 
@@ -166,6 +168,7 @@ func (t *Transport) prepare(
 	)
 	t.params.Logger.Debug("填充授权村头", field.New("authorization", authorization))
 	request.SetHeader("Authorization", authorization).SetBody(*payload)
+	request.SetHeader("X-YC-Timestamp", strconv.FormatInt(timestamp, 10))
 
 	return
 }

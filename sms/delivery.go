@@ -8,9 +8,9 @@ type (
 	DeliveryRequest struct {
 		*request
 
-		Template uint64         `json:"templateId,string,omitempty"`
-		Phones   []string       `json:"phones,omitempty"`
-		Values   map[string]any `json:"varName2Values,omitempty"`
+		Template uint64           `json:"templateId,string,omitempty"`
+		Phones   []string         `json:"phones,omitempty"`
+		Values   []map[string]any `json:"varName2Values,omitempty"`
 	}
 
 	DeliverResult struct {
@@ -29,5 +29,5 @@ func (*DeliveryRequest) Method() constant.Method {
 }
 
 func (*DeliveryRequest) Url() string {
-	return "api/sms/deliveries"
+	return "deliveries"
 }
