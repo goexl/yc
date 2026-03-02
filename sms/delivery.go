@@ -1,6 +1,8 @@
 package sms
 
 import (
+	"github.com/goexl/exception"
+	"github.com/goexl/gox/http"
 	"github.com/goexl/yc/internal/constant"
 )
 
@@ -30,4 +32,16 @@ func (*DeliveryRequest) Method() constant.Method {
 
 func (*DeliveryRequest) Url() string {
 	return "deliveries"
+}
+
+func (*DeliveryRequest) Handle(status int, code int, data any) (err error) {
+	switch status {
+	case http.StatusUnprocessableEntity:
+		switch code {
+		case 1000:
+			err = exception.New().Message("").Build()
+		}
+	}
+
+	return
 }

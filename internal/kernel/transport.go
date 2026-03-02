@@ -33,10 +33,7 @@ func (t *Transport) Do(ctx context.Context, req kernel.Request, rsp any) (err er
 	request := t.params.Http.NewRequest()
 	request.SetContext(ctx).SetResult(rsp)
 
-	url := fmt.Sprintf(
-		"https://api.cloud.yaothink.tech/categories/%s/products/%s/functions/%s/%s",
-		req.Category(), req.Product(), req.Function(), req.Url(),
-	)
+	url := fmt.Sprintf("https://api.cloud.yaothink.tech%s", t.uri(req))
 	fields := gox.Fields[any]{
 		field.New("url", url),
 	}
@@ -49,7 +46,6 @@ func (t *Transport) Do(ctx context.Context, req kernel.Request, rsp any) (err er
 	} else if hpr, hpe := request.Post(url); nil != hpe {
 		err = hpe
 	} else if hpr.IsError() {
-		fmt.Println(t.params.Http.Curl(hpr))
 		err = t.handleException(req, hpr)
 	}
 
@@ -76,6 +72,8 @@ func (t *Transport) handleUnprocessableEntity(response *resty.Response) (err err
 		err = exception.New().Message("设置数据默认值出错").Field(field.New("code", 2)).Build()
 	} else if exc.Code == 3 {
 		err = exception.New().Message("数组校验不通过").Field(field.New("code", 3)).Build()
+	} else {
+		err = exception.New().Message(exc.Message).Field(field.New("code", exc.Code), field.New("data", exc.Data)).Build()
 	}
 
 	return
@@ -107,6 +105,7 @@ func (t *Transport) prepare(
 	key := t.params.Key
 	host := "api.cloud.yaothink.tech"
 	algorithm := "YC-ZONGLIANG"
+	contentType := "application/json; charset=utf-8"
 	category := req.Category()
 	product := req.Product()
 	function := req.Function()
@@ -114,20 +113,17 @@ func (t *Transport) prepare(
 
 	// 步骤一：构建规范请求
 	method := req.Method()
-	canonicalURI := req.Url()
-	canonicalQueryString := ""
-	canonicalHeaders := fmt.Sprintf(
-		"content-type:%s\nhost:%s\n",
-		"application/json; charset=utf-8", host,
-	)
+	uri := t.uri(req)
+	query := ""
+	headers := fmt.Sprintf("content-type:%s\nhost:%s\n", contentType, host)
 	signedHeaders := "content-type;host"
 	hashedRequestPayload := t.sha256Hex(*payload)
 	canonicalRequest := fmt.Sprintf(
 		"%s\n%s\n%s\n%s\n%s\n%s",
 		method,
-		canonicalURI,
-		canonicalQueryString,
-		canonicalHeaders,
+		uri,
+		query,
+		headers,
 		signedHeaders,
 		hashedRequestPayload,
 	)
@@ -135,7 +131,7 @@ func (t *Transport) prepare(
 
 	// 步骤二：构建待签名字符串
 	date := time.Unix(timestamp, 0).UTC().Format("2006-01-02")
-	credentialScope := fmt.Sprintf("%s/%s/%s/%s/yc_request", date, category, product, function)
+	scope := fmt.Sprintf("%s/%s/%s/%s/yc_request", date, category, product, function)
 	hashedCanonicalRequest := t.sha256Hex([]byte(canonicalRequest))
 	stringToSign := fmt.Sprintf(
 		"%s\n%d\n%s\n%s\n%s\n%s\n%s",
@@ -144,7 +140,7 @@ func (t *Transport) prepare(
 		category,
 		product,
 		function,
-		credentialScope,
+		scope,
 		hashedCanonicalRequest,
 	)
 	t.params.Logger.Debug("构建待签名字符串完成", field.New("result", stringToSign))
@@ -156,9 +152,8 @@ func (t *Transport) prepare(
 	signature := hex.EncodeToString([]byte(t.hmacSHA256(stringToSign, secretSigning)))
 	t.params.Logger.Debug("计算签名完成", field.New("result", signature))
 
-	authorization := fmt.Sprintf(
-		"%s %s,%s,%s,%s,%s,%s",
-		algorithm,
+	token := fmt.Sprintf(
+		"%s,%s,%s,%s,%s,%s",
 		id,
 		category,
 		product,
@@ -166,11 +161,20 @@ func (t *Transport) prepare(
 		signedHeaders,
 		signature,
 	)
-	t.params.Logger.Debug("填充授权村头", field.New("authorization", authorization))
-	request.SetHeader("Authorization", authorization).SetBody(*payload)
-	request.SetHeader("X-YC-Timestamp", strconv.FormatInt(timestamp, 10))
+	t.params.Logger.Debug("填充授权标头", field.New("token", token))
+	request.SetAuthScheme(algorithm).SetAuthToken(token)
+	request.SetBody(*payload)
+	request.SetHeader("X-Yc-Timestamp", strconv.FormatInt(timestamp, 10))
+	request.SetHeader("Content-Type", contentType)
 
 	return
+}
+
+func (t *Transport) uri(req kernel.Request) string {
+	return fmt.Sprintf(
+		"/categories/%s/products/%s/functions/%s/%s",
+		req.Category(), req.Product(), req.Function(), req.Url(),
+	)
 }
 
 func (t *Transport) sha256Hex(from []byte) (to string) {
