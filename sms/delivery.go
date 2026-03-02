@@ -1,8 +1,6 @@
 package sms
 
 import (
-	"github.com/goexl/exception"
-	"github.com/goexl/gox/http"
 	"github.com/goexl/yc/internal/constant"
 )
 
