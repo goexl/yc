@@ -2,6 +2,7 @@ package sms_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -26,5 +27,7 @@ func TestMessage(t *testing.T) {
 		t.Error(err)
 	} else if !rsp.Success {
 		t.Error(rsp.Error)
+	} else {
+		fmt.Println(rsp)
 	}
 }

@@ -13,13 +13,17 @@ type (
 		Arguments map[string]any `json:"arguments,omitempty"`
 	}
 
-	MessageResponse struct {
+	MessageResult struct {
 		Phone   string `json:"phone,omitempty"`
 		Success bool   `json:"success,omitempty"`
 		Error   struct {
 			Code    int    `json:"code,omitempty"`
 			Message string `json:"message,omitempty"`
 		} `json:"error,omitempty"`
+	}
+
+	MessageResponse struct {
+		Result MessageResult `json:"result,omitempty"`
 	}
 )
 
