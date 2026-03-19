@@ -25,8 +25,8 @@ func TestMessage(t *testing.T) {
 		},
 	}); err != nil {
 		t.Error(err)
-	} else if !rsp.Success {
-		t.Error(rsp.Error)
+	} else if !rsp.Result.Success {
+		t.Error(rsp.Result.Error)
 	} else {
 		fmt.Println(rsp)
 	}
