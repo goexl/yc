@@ -16,7 +16,10 @@ type (
 	DeliverResult struct {
 		Phone   string `json:"phone,omitempty"`
 		Success bool   `json:"success,omitempty"`
-		Error   string `json:"error,omitempty"`
+		Error   struct {
+			Code    int    `json:"code,omitempty"`
+			Message string `json:"message,omitempty"`
+		} `json:"error,omitempty"`
 	}
 
 	DeliveryResponse struct {
